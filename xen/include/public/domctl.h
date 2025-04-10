@@ -320,6 +320,7 @@ struct xen_domctl_getvcpuinfo {
     uint8_t  running;                 /* currently scheduled on its CPU? */
     uint64_aligned_t cpu_time;        /* total cpu time consumed (ns) */
     uint32_t cpu;                     /* current mapping   */
+    uint64_aligned_t affine_time;     /* time consumed on affine CPUs (ns) */
 };
 
 

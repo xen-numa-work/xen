@@ -619,7 +619,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
         if ( (v = d->vcpu[op->u.getvcpuinfo.vcpu]) == NULL )
             break;
 
-        vcpu_runstate_get(v, &runstate);
+        op->u.getvcpuinfo.affine_time = vcpu_runstate_get(v, &runstate);
 
         op->u.getvcpuinfo.online   = !(v->pause_flags & VPF_down);
         op->u.getvcpuinfo.blocked  = !!(v->pause_flags & VPF_blocked);

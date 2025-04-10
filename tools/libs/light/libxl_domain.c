@@ -1706,6 +1706,7 @@ libxl_vcpuinfo *libxl_list_vcpu(libxl_ctx *ctx, uint32_t domid,
         ptr->blocked = !!vcpuinfo.blocked;
         ptr->running = !!vcpuinfo.running;
         ptr->vcpu_time = vcpuinfo.cpu_time;
+        ptr->vcpu_affine_time = vcpuinfo.affine_time;
     }
     *nr_vcpus_out = nr_vcpus;
     GC_FREE;

@@ -198,7 +198,18 @@ struct vcpu
 
     struct sched_unit *sched_unit;
 
+    /*
+     * The struct vcpu_runstate_info contains the time the vCPU spent in each
+     * runstate, the start of the last runstate change.
+     *
+     * Note: Is used in the per-VCPU guest runstate shared memory area.
+     * Thereby, it is part of the frozen guest API and cannot be changed.
+     */
     struct vcpu_runstate_info runstate;
+
+    /* vCPU time running within the scheduling unit's soft_affinity mask */
+    unsigned int     affine_runtime;
+
 #ifndef CONFIG_COMPAT
 # define runstate_guest(v) ((v)->runstate_guest)
     XEN_GUEST_HANDLE(vcpu_runstate_info_t) runstate_guest; /* guest address */
@@ -1090,8 +1101,8 @@ int vcpu_set_hard_affinity(struct vcpu *v, const cpumask_t *affinity);
 int vcpu_affinity_domctl(struct domain *d, uint32_t cmd,
                          struct xen_domctl_vcpuaffinity *vcpuaff);
 
-void vcpu_runstate_get(const struct vcpu *v,
-                       struct vcpu_runstate_info *runstate);
+uint64_t vcpu_runstate_get(const struct vcpu *v,
+                           struct vcpu_runstate_info *runstate);
 uint64_t get_cpu_idle_time(unsigned int cpu);
 void sched_guest_idle(void (*idle) (void), unsigned int cpu);
 void scheduler_enable(void);

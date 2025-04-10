@@ -283,7 +283,19 @@ static inline void vcpu_runstate_change(
     delta = new_entry_time - v->runstate.state_entry_time;
     if ( delta > 0 )
     {
+        /* Account the elapsed time in this runstate to the runstate's time */
         v->runstate.time[v->runstate.state] += delta;
+        /*
+         * Account time within the scheduling unit's soft affinity mask:
+         *
+         * If the vCPU's previous runstate was RUNSTATE_running,
+         * and it was scheduled to run on a CPU in its soft_affinity mask,
+         * account the runtime delta towards the affine_runtime of the vCPU.
+         */
+        if ( v->runstate.state ==  RUNSTATE_running
+             && cpumask_test_cpu(v->processor, unit->cpu_soft_affinity) )
+            v->affine_runtime += delta;
+
         v->runstate.state_entry_time = new_entry_time;
     }
 
@@ -304,12 +316,17 @@ void sched_guest_idle(void (*idle) (void), unsigned int cpu)
     atomic_dec(&per_cpu(sched_urgent_count, cpu));
 }
 
-void vcpu_runstate_get(const struct vcpu *v,
-                       struct vcpu_runstate_info *runstate)
+/**
+ * Return a snapshot of the vCPU's runstate for hypercall handling and
+ * for updating the vCPU information memory area shared with the domain.
+ */
+uint64_t vcpu_runstate_get(const struct vcpu *v,
+                           struct vcpu_runstate_info *runstate)
 {
     spinlock_t *lock;
     s_time_t delta;
     struct sched_unit *unit;
+    uint64_t affine_runtime;
 
     rcu_read_lock(&sched_res_rculock);
 
@@ -322,15 +339,35 @@ void vcpu_runstate_get(const struct vcpu *v,
     unit = is_idle_vcpu(v) ? get_sched_res(v->processor)->sched_unit_idle
                            : v->sched_unit;
     lock = likely(v == current) ? NULL : unit_schedule_lock_irq(unit);
+
+    /* Holding the scheduling unit's lock, get the runstate info */
     memcpy(runstate, &v->runstate, sizeof(*runstate));
+    affine_runtime = v->affine_runtime;
+
+    /* update the current runstate's time with the time running in it so far */
     delta = NOW() - runstate->state_entry_time;
     if ( delta > 0 )
+    {
+        /* Account the elapsed time in this runstate to the runstate's time */
         runstate->time[runstate->state] += delta;
+
+        /*
+         * If the vCPU's current runstate is RUNSTATE_running,
+         * and it is running on a CPU in its soft_affinity mask,
+         * add the current runtime to the affine_runtime of the vCPU.
+         */
+        if ( runstate->state ==  RUNSTATE_running
+            && cpumask_test_cpu(v->processor, unit->cpu_soft_affinity) )
+          affine_runtime += delta;
+    }
 
     if ( unlikely(lock != NULL) )
         unit_schedule_unlock_irq(lock, unit);
 
     rcu_read_unlock(&sched_res_rculock);
+
+    /* Return the runtime within the scheduling unit's soft affinity mask */
+    return affine_runtime;
 }
 
 uint64_t get_cpu_idle_time(unsigned int cpu)

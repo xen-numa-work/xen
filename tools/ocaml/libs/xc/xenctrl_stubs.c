@@ -533,6 +533,7 @@ CAMLprim value stub_xc_vcpu_getinfo(value xch_val, value domid, value vcpu)
 	Store_field(result, 2, Val_bool(info.running));
 	Store_field(result, 3, caml_copy_int64(info.cpu_time));
 	Store_field(result, 4, caml_copy_int32(info.cpu));
+	Store_field(result, 5, caml_copy_int64(info.affine_time));
 
 	CAMLreturn(result);
 }

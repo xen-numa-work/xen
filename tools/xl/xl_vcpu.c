@@ -49,6 +49,8 @@ static void print_vcpuinfo(uint32_t tdomid,
     print_bitmap(vcpuinfo->cpumap.map, nr_cpus, stdout);
     printf(" / ");
     print_bitmap(vcpuinfo->cpumap_soft.map, nr_cpus, stdout);
+    /* Percent of vCPU soft-affinity success */
+    printf(" %3ld%%", (100 * vcpuinfo->vcpu_affine_time / vcpuinfo->vcpu_time));
     printf("\n");
 }
 
