@@ -304,7 +304,19 @@ static inline void vcpu_runstate_change(
     delta = new_entry_time - v->runstate.state_entry_time;
     if ( delta > 0 )
     {
+        /* Account the elapsed time in this runstate to the runstate's time */
         v->runstate.time[v->runstate.state] += delta;
+        /*
+         * Account time within the scheduling unit's soft affinity mask:
+         *
+         * If the vCPU's previous runstate was RUNSTATE_running,
+         * and it was scheduled to run on a CPU in its soft_affinity mask,
+         * account the runtime delta towards the affine_runtime of the vCPU.
+         */
+        if ( v->runstate.state ==  RUNSTATE_running
+             && cpumask_test_cpu(v->processor, unit->cpu_soft_affinity) )
+            v->affine_runtime += delta;
+
         v->runstate.state_entry_time = new_entry_time;
     }
 
