@@ -1052,8 +1052,8 @@ int vcpu_set_hard_affinity(struct vcpu *v, const cpumask_t *affinity);
 int vcpu_affinity_domctl(struct domain *d, uint32_t cmd,
                          struct xen_domctl_vcpuaffinity *vcpuaff);
 
-void vcpu_runstate_get(const struct vcpu *v,
-                       struct vcpu_runstate_info *runstate);
+uint64_t vcpu_runstate_get(const struct vcpu *v,
+                           struct vcpu_runstate_info *runstate);
 void domain_runstate_get(struct domain *d, domain_runstate_info_t *runstate);
 
 uint64_t get_cpu_idle_time(unsigned int cpu);
