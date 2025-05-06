@@ -279,6 +279,17 @@ static int mask_to_state[] = {
     DOMAIN_RUNSTATE_concurrency_hazard
 };
 
+/*
+ * Return true only if the vcpu is running outside of the soft affinity mask of
+ * the scheduling unit. This is used to determine if the vcpu is/was non-affine.
+ */
+static inline bool nonaffine(const struct vcpu *v,
+                             const struct sched_unit *unit)
+{
+    return v->runstate.state == RUNSTATE_running
+        && !cpumask_test_cpu(v->processor, unit->cpu_soft_affinity);
+}
+
 static inline void vcpu_runstate_change(
     struct vcpu *v, int new_state, s_time_t new_entry_time)
 {
@@ -304,6 +315,9 @@ static inline void vcpu_runstate_change(
     if ( delta > 0 )
     {
         v->runstate.time[v->runstate.state] += delta;
+        if ( nonaffine(v, unit) )
+            v->nonaffine_time += delta;
+
         v->runstate.state_entry_time = new_entry_time;
     }
 

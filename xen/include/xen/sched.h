@@ -191,7 +191,18 @@ struct vcpu
 
     struct sched_unit *sched_unit;
 
+    /*
+     * The struct vcpu_runstate_info contains the time the vCPU spent in each
+     * runstate, the start of the last runstate change.
+     *
+     * Note: This field is used for the guest runstate shared memory area.
+     * Therefore, it is part of the frozen guest API and cannot be changed.
+     */
     struct vcpu_runstate_info runstate;
+
+    /* vCPU time nonaffine to the scheduling unit's soft_affinity mask */
+    uint64_t     nonaffine_time;
+
 #ifndef CONFIG_COMPAT
 # define runstate_guest(v) ((v)->runstate_guest)
     XEN_GUEST_HANDLE(vcpu_runstate_info_t) runstate_guest; /* guest address */
