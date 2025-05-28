@@ -6476,7 +6476,7 @@ static const char *vcpu_op_str[] = {
     "register_runstate_memory_area", "set_periodic_timer",
     "stop_periodic_timer", "set_singleshot_timer", "stop_singleshot_timer",
     "register_vcpu_info", "send_nmi", "get_physid",
-    "register_vcpu_time_memory_area",
+    "register_vcpu_time_memory_area", "get_vcpurunnabletime",
 };
 
 static const char *sched_op_str[] = {

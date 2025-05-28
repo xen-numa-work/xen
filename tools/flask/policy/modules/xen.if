@@ -55,6 +55,7 @@ define(`create_domain_common', `
 			set_vnumainfo get_vnumainfo cacheflush
 			psr_cmt_op psr_alloc soft_reset
 			get_runstate_info
+			get_vcpurunnabletime
 			resource_map get_cpu_policy };
 	allow $1 $2:security check_context;
 	allow $1 $2:shadow enable;

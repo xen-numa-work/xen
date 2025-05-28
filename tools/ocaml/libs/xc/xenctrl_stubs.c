@@ -1350,6 +1350,41 @@ CAMLprim value stub_xc_watchdog(value xch, value domid, value timeout)
 	CAMLreturn(Val_int(ret));
 }
 
+CAMLprim value stub_xc_get_vcpu_runnable_list(value xch, value domid)
+{
+	CAMLparam2(xch, domid);
+	CAMLlocal1(runnable_list);
+	xc_domaininfo_t info;
+	uint32_t nr_vcpus;
+	uint64_t *c_runnable_list;
+	int retval, i;
+
+	retval = xc_domain_getinfo_single(_H(xch), _D(domid), &info);
+	if (retval < 0)
+		failwith_xc(_H(xch));
+
+	nr_vcpus = info.max_vcpu_id + 1;
+	c_runnable_list = calloc(nr_vcpus, sizeof(*c_runnable_list));
+	if (!c_runnable_list)
+		caml_raise_out_of_memory();
+
+	retval = xc_get_vcpu_runnable_list(_H(xch), _D(domid),
+					   nr_vcpus,
+					   c_runnable_list);
+	if (retval < 0) {
+		free(c_runnable_list);
+		failwith_xc(_H(xch));
+	}
+
+	runnable_list = caml_alloc(nr_vcpus, 0);
+	for (i = 0; i < nr_vcpus; i++)
+		Store_field(runnable_list, i,
+			    caml_copy_int64(c_runnable_list[i]));
+
+	free(c_runnable_list);
+	CAMLreturn(runnable_list);
+}
+
 /*
  * Local variables:
  *  indent-tabs-mode: t
