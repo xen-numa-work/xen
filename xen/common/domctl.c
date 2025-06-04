@@ -865,6 +865,31 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
         copyback = 1;
         break;
 
+    case XEN_DOMCTL_get_vcpu_times:
+    {
+        struct vcpu_runstate_info runstate;
+        struct vcpu *v;
+
+        ret = -EINVAL;
+        if ( op->u.vcpu_times.vcpu >= d->max_vcpus )
+            break;
+
+        ret = -ESRCH;
+        if ( (v = d->vcpu[op->u.vcpu_times.vcpu]) == NULL )
+            break;
+
+        op->u.vcpu_times.nonaffine_time = vcpu_runstate_get(v, &runstate);
+
+        op->u.vcpu_times.affine_time =
+            runstate.time[RUNSTATE_running] - op->u.vcpu_times.nonaffine_time;
+
+        op->u.vcpu_times.runnable_time =
+            runstate.time[RUNSTATE_runnable];
+        ret = 0;
+        copyback = 1;
+        break;
+    }
+
     default:
         ret = arch_do_domctl(op, d, u_domctl);
         break;

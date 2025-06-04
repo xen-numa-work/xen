@@ -279,6 +279,17 @@ static int mask_to_state[] = {
     DOMAIN_RUNSTATE_concurrency_hazard
 };
 
+/*
+ * Return true only if the vcpu is running outside of the soft affinity mask of
+ * the scheduling unit. This is used to determine if the vcpu is/was non-affine.
+ */
+static inline bool nonaffine(const struct vcpu *v,
+                             const struct sched_unit *unit)
+{
+    return v->runstate.state == RUNSTATE_running
+        && !cpumask_test_cpu(v->processor, unit->cpu_soft_affinity);
+}
+
 static inline void vcpu_runstate_change(
     struct vcpu *v, int new_state, s_time_t new_entry_time)
 {
@@ -304,6 +315,9 @@ static inline void vcpu_runstate_change(
     if ( delta > 0 )
     {
         v->runstate.time[v->runstate.state] += delta;
+        if ( nonaffine(v, unit) )
+            v->nonaffine_time += delta;
+
         v->runstate.state_entry_time = new_entry_time;
     }
 
@@ -364,12 +378,25 @@ void sched_guest_idle(void (*idle) (void), unsigned int cpu)
     atomic_dec(&per_cpu(sched_urgent_count, cpu));
 }
 
-void vcpu_runstate_get(const struct vcpu *v,
-                       struct vcpu_runstate_info *runstate)
+/**
+ * vcpu_runstate_get(): Get vcpu times spent in all runstates
+ *
+ * @param v: vcpu for which get the accumulated vcpu runstate times
+ * @param runstate: pointer to a vcpu_runstate_info structure to fill in.
+ *                  This structure is filled in with the current runstate
+ *                  information for the vcpu. The time spent in the current
+ *                  runstate so far is also added to the time spent in it.
+ *                  The layout of the structure cannot be changed without
+ *                  breaking the ABI, it is used in the shared info page.
+ * @returns time spent running non-affine since vcpu creation in ns
+ */
+uint64_t vcpu_runstate_get(const struct vcpu *v,
+                           struct vcpu_runstate_info *runstate)
 {
     spinlock_t *lock;
     s_time_t delta;
     struct sched_unit *unit;
+    uint64_t nonaffine_total;
 
     rcu_read_lock(&sched_res_rculock);
 
@@ -381,16 +408,27 @@ void vcpu_runstate_get(const struct vcpu *v,
      */
     unit = is_idle_vcpu(v) ? get_sched_res(v->processor)->sched_unit_idle
                            : v->sched_unit;
+    /* Read the vcpu struct while holding unit_schedule_lock_irq(unit) */
     lock = likely(v == current) ? NULL : unit_schedule_lock_irq(unit);
+
     memcpy(runstate, &v->runstate, sizeof(*runstate));
+    nonaffine_total = v->nonaffine_time;  /* get accumulated nonaffine time */
+
     delta = NOW() - runstate->state_entry_time;
     if ( delta > 0 )
+    {
         runstate->time[runstate->state] += delta;
+
+        if ( nonaffine(v, unit) )  /* If currently in nonaffine state, add it */
+          nonaffine_total += delta;
+    }
 
     if ( unlikely(lock != NULL) )
         unit_schedule_unlock_irq(lock, unit);
 
     rcu_read_unlock(&sched_res_rculock);
+
+    return nonaffine_total;
 }
 
 void domain_runstate_get(struct domain *d, domain_runstate_info_t *runstate)

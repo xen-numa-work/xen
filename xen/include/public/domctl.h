@@ -1229,6 +1229,16 @@ DEFINE_XEN_GUEST_HANDLE(xen_domctl_runstate_info_t);
 /* Some vcpus are runnable, some are blocked */
 #define DOMAIN_RUNSTATE_partial_contention 5
 
+/* XEN_DOMCTL_get_vcpu_times */
+struct xen_domctl_get_vcpu_times {
+    /* IN variables. */
+    uint32_t vcpu;
+    /* OUT variables. */
+    uint64_t runnable_time;  /* total cpu runnable time (ns) */
+    uint64_t affine_time;    /* total cpu affine running time (ns) */
+    uint64_t nonaffine_time; /* total cpu nonaffine running time (ns) */
+};
+
 struct xen_domctl {
     uint32_t cmd;
 #define XEN_DOMCTL_createdomain                   1
@@ -1316,6 +1326,7 @@ struct xen_domctl {
 #define XEN_DOMCTL_vmtrace_op                    84
 #define XEN_DOMCTL_get_paging_mempool_size       85
 #define XEN_DOMCTL_set_paging_mempool_size       86
+#define XEN_DOMCTL_get_vcpu_times                91
 #define XEN_DOMCTL_get_runstate_info             98
 #define XEN_DOMCTL_gdbsx_guestmemio            1000
 #define XEN_DOMCTL_gdbsx_pausevcpu             1001
@@ -1380,6 +1391,7 @@ struct xen_domctl {
         struct xen_domctl_vuart_op          vuart_op;
         struct xen_domctl_vmtrace_op        vmtrace_op;
         struct xen_domctl_paging_mempool    paging_mempool;
+        struct xen_domctl_get_vcpu_times    vcpu_times;
         uint8_t                             pad[128];
     } u;
 };

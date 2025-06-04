@@ -2218,6 +2218,86 @@ int xc_domain_soft_reset(xc_interface *xch,
     domctl.domain = domid;
     return do_domctl(xch, &domctl);
 }
+
+int xc_get_vcpu_times(xc_interface *xch,
+                      uint32_t domid,
+                      uint32_t nr_vcpus,
+                      uint64_t *runnable_vcpu_times,
+                      uint64_t *nonaffine_vcpu_times,
+                      uint64_t *affine_vcpu_times)
+{
+    int rc, i;
+
+    multicall_entry_t *call;
+    DECLARE_HYPERCALL_BUFFER(multicall_entry_t, call_list);
+    xc_hypercall_buffer_array_t *domctl_list = NULL;
+
+    call_list = xc_hypercall_buffer_alloc(xch, call_list,
+                                          sizeof(*call_list) * nr_vcpus);
+    if ( !call_list )
+        return -1;
+
+    domctl_list = xc_hypercall_buffer_array_create(xch, nr_vcpus);
+    if ( !domctl_list )
+    {
+        PERROR("%s: Could not allocate memory for multicall hypercall",
+               __func__);
+        rc = -1;
+        goto out;
+    }
+
+    for ( i = 0; i < nr_vcpus; i++ )
+    {
+        DECLARE_HYPERCALL_BUFFER(xen_domctl_t, domctl);
+
+        domctl = xc_hypercall_buffer_array_alloc(xch, domctl_list, i, domctl,
+                                                 sizeof(xen_domctl_t));
+        if ( !domctl )
+        {
+            PERROR("%s: Could not allocate memory for domctl get_vcpu_times",
+                   __func__);
+            rc = -1;
+            goto out;
+        }
+
+        domctl->interface_version = XEN_DOMCTL_INTERFACE_VERSION;
+        domctl->cmd = XEN_DOMCTL_get_vcpu_times;
+        domctl->domain = domid;
+        domctl->u.vcpu_times.vcpu = (uint16_t)i;
+
+        call = call_list + i;
+        call->op = __HYPERVISOR_domctl;
+        call->args[0] = HYPERCALL_BUFFER_AS_ARG(domctl);
+    }
+
+    rc = do_multicall_op(xch, HYPERCALL_BUFFER(call_list), nr_vcpus);
+    if (rc < 0)
+        goto out;
+
+    for ( i = 0; i < nr_vcpus; i++ )
+    {
+        call = call_list + i;
+        if (!call->result)
+        {
+            DECLARE_HYPERCALL_BUFFER(xen_domctl_t, domctl);
+            domctl = xc_hypercall_buffer_array_get(xch, domctl_list, i, domctl,
+                                                   sizeof(xen_domctl_t));
+
+            affine_vcpu_times[i] = domctl->u.vcpu_times.affine_time;
+            nonaffine_vcpu_times[i] = domctl->u.vcpu_times.nonaffine_time;
+            runnable_vcpu_times[i] = domctl->u.vcpu_times.runnable_time;
+        } else {
+            affine_vcpu_times[i] = -1;
+            nonaffine_vcpu_times[i] = -1;
+            runnable_vcpu_times[i] = -1;
+        }
+    }
+
+out:
+    xc_hypercall_buffer_array_destroy(xch, domctl_list);
+    xc_hypercall_buffer_free(xch, call_list);
+    return rc;
+}
 /*
  * Local variables:
  * mode: C
