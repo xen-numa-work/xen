@@ -1350,13 +1350,16 @@ CAMLprim value stub_xc_watchdog(value xch, value domid, value timeout)
 	CAMLreturn(Val_int(ret));
 }
 
-CAMLprim value stub_xc_get_vcpu_runnable_list(value xch, value domid)
+/**
+ * Get runnable, non-affine and affine times of each vcpu in a domain.
+ */
+CAMLprim value stub_xc_get_vcpu_times(value xch, value domid)
 {
 	CAMLparam2(xch, domid);
 	CAMLlocal1(runnable_list);
 	xc_domaininfo_t info;
 	uint32_t nr_vcpus;
-	uint64_t *c_runnable_list;
+	uint64_t *vcpu_times;
 	int retval, i;
 
 	retval = xc_domain_getinfo_single(_H(xch), _D(domid), &info);
@@ -1364,24 +1367,26 @@ CAMLprim value stub_xc_get_vcpu_runnable_list(value xch, value domid)
 		failwith_xc(_H(xch));
 
 	nr_vcpus = info.max_vcpu_id + 1;
-	c_runnable_list = calloc(nr_vcpus, sizeof(*c_runnable_list));
-	if (!c_runnable_list)
+	vcpu_times = calloc(nr_vcpus, sizeof(*vcpu_times) * 3);
+	if (!vcpu_times)
 		caml_raise_out_of_memory();
 
-	retval = xc_get_vcpu_runnable_list(_H(xch), _D(domid),
-					   nr_vcpus,
-					   c_runnable_list);
+	retval = xc_get_vcpu_times(_H(xch), _D(domid),
+				nr_vcpus,
+				vcpu_times, // runnable time of each vcpu
+				vcpu_times + nr_vcpus, // nonaffine runtime of each vcpu
+				vcpu_times + nr_vcpus * 2); // affine runtime of each vcpu
 	if (retval < 0) {
-		free(c_runnable_list);
+		free(vcpu_times);
 		failwith_xc(_H(xch));
 	}
 
 	runnable_list = caml_alloc(nr_vcpus, 0);
-	for (i = 0; i < nr_vcpus; i++)
+	for (i = 0; i < nr_vcpus * 3; i++)
 		Store_field(runnable_list, i,
-			    caml_copy_int64(c_runnable_list[i]));
+			    caml_copy_int64(vcpu_times[i]));
 
-	free(c_runnable_list);
+	free(vcpu_times);
 	CAMLreturn(runnable_list);
 }
 

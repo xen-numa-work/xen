@@ -325,5 +325,5 @@ external pages_to_kib : int64 -> int64 = "stub_pages_to_kib"
 val pages_to_mib : int64 -> int64
 external watchdog : handle -> int -> int32 -> int
   = "stub_xc_watchdog"
-external domain_get_vcpu_runnable_list : handle -> int -> int64 array
-  = "stub_xc_get_vcpu_runnable_list"
+external domain_get_vcpu_times : handle -> int -> int64 array
+  = "stub_xc_get_vcpu_times"

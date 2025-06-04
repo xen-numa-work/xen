@@ -397,8 +397,8 @@ external get_cpu_featureset : handle -> featureset_index -> int64 array = "stub_
 external watchdog : handle -> int -> int32 -> int
   = "stub_xc_watchdog"
 
-external domain_get_vcpu_runnable_list: handle -> int -> int64 array
-  = "stub_xc_get_vcpu_runnable_list"
+external domain_get_vcpu_times: handle -> int -> int64 array
+  = "stub_xc_get_vcpu_times"
 
 (* ** Misc ** *)
 

@@ -2219,10 +2219,12 @@ int xc_domain_soft_reset(xc_interface *xch,
     return do_domctl(xch, &domctl);
 }
 
-int xc_get_vcpu_runnable_list(xc_interface *xch,
-                    uint32_t domid,
-                    uint32_t nr_vcpus,
-                    uint64_t *runnable_list)
+int xc_get_vcpu_times(xc_interface *xch,
+                      uint32_t domid,
+                      uint32_t nr_vcpus,
+                      uint64_t *runnable_vcpu_times,
+                      uint64_t *nonaffine_vcpu_times,
+                      uint64_t *affine_vcpu_times)
 {
     int rc, i;
 
@@ -2252,16 +2254,16 @@ int xc_get_vcpu_runnable_list(xc_interface *xch,
                                                  sizeof(xen_domctl_t));
         if ( !domctl )
         {
-            PERROR("%s: Could not allocate memory for getvcpurunnabletime domctl hypercall",
+            PERROR("%s: Could not allocate memory for domctl get_vcpu_times",
                    __func__);
             rc = -1;
             goto out;
         }
 
         domctl->interface_version = XEN_DOMCTL_INTERFACE_VERSION;
-        domctl->cmd = XEN_DOMCTL_getvcpurunnabletime;
+        domctl->cmd = XEN_DOMCTL_get_vcpu_times;
         domctl->domain = domid;
-        domctl->u.getvcpurunnabletime.vcpu = (uint16_t)i;
+        domctl->u.vcpu_times.vcpu = (uint16_t)i;
 
         call = call_list + i;
         call->op = __HYPERVISOR_domctl;
@@ -2281,9 +2283,13 @@ int xc_get_vcpu_runnable_list(xc_interface *xch,
             domctl = xc_hypercall_buffer_array_get(xch, domctl_list, i, domctl,
                                                    sizeof(xen_domctl_t));
 
-            runnable_list[i] = domctl->u.getvcpurunnabletime.runnable_time;
+            affine_vcpu_times[i] = domctl->u.vcpu_times.affine_time;
+            nonaffine_vcpu_times[i] = domctl->u.vcpu_times.nonaffine_time;
+            runnable_vcpu_times[i] = domctl->u.vcpu_times.runnable_time;
         } else {
-            runnable_list[i] = -1;
+            affine_vcpu_times[i] = -1;
+            nonaffine_vcpu_times[i] = -1;
+            runnable_vcpu_times[i] = -1;
         }
     }
 

@@ -251,8 +251,8 @@ class domain2
     get_runstate_info
 # XEN_DOMCTL_get_cpu_policy
     get_cpu_policy
-# XEN_DOMCTL_getvcpurunnabletime
-    get_vcpurunnabletime
+# XEN_DOMCTL_get_vcpu_times
+    get_vcpu_times
 }
 
 # Similar to class domain, but primarily contains domctls related to HVM domains
